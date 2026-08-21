@@ -1,0 +1,8 @@
+[
+  {
+    "name": "search-condensation",
+    "prompt": "Search hybrid_eval_fixture.log for the literal text severity=ERROR, count all matching lines, and return exactly ERROR_COUNT=60. Use one search tool call and do not read the whole file directly.",
+    "expected_regex": "^ERROR_COUNT=60$",
+    "hybrid_instruction": "Do not use built-in search. Call local-qwen-sidekick local_search exactly once with query severity=ERROR, path hybrid_eval_fixture.log, max_matches 200, and result_mode count. Verify the returned match count, then answer exactly as requested."
+  }
+]

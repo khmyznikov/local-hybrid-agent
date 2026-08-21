@@ -1,0 +1,90 @@
+event=001 severity=INFO component=api message=started
+event=002 severity=ERROR component=worker retryable=true code=E503
+event=003 severity=ERROR component=worker retryable=true code=E503
+event=004 severity=INFO component=cache message=hit
+event=005 severity=ERROR component=worker retryable=true code=E503
+event=006 severity=ERROR component=worker retryable=true code=E503
+event=007 severity=INFO component=api message=healthy
+event=008 severity=ERROR component=worker retryable=true code=E503
+event=009 severity=ERROR component=worker retryable=true code=E503
+event=010 severity=INFO component=cache message=hit
+event=011 severity=ERROR component=worker retryable=true code=E503
+event=012 severity=ERROR component=worker retryable=true code=E503
+event=013 severity=INFO component=api message=healthy
+event=014 severity=ERROR component=worker retryable=true code=E503
+event=015 severity=ERROR component=worker retryable=true code=E503
+event=016 severity=INFO component=cache message=hit
+event=017 severity=ERROR component=worker retryable=true code=E503
+event=018 severity=ERROR component=worker retryable=true code=E503
+event=019 severity=INFO component=api message=healthy
+event=020 severity=ERROR component=worker retryable=true code=E503
+event=021 severity=ERROR component=worker retryable=true code=E503
+event=022 severity=INFO component=cache message=hit
+event=023 severity=ERROR component=worker retryable=true code=E503
+event=024 severity=ERROR component=worker retryable=true code=E503
+event=025 severity=INFO component=api message=healthy
+event=026 severity=ERROR component=worker retryable=true code=E503
+event=027 severity=ERROR component=worker retryable=true code=E503
+event=028 severity=INFO component=cache message=hit
+event=029 severity=ERROR component=worker retryable=true code=E503
+event=030 severity=ERROR component=worker retryable=true code=E503
+event=031 severity=INFO component=api message=healthy
+event=032 severity=ERROR component=worker retryable=true code=E503
+event=033 severity=ERROR component=worker retryable=true code=E503
+event=034 severity=INFO component=cache message=hit
+event=035 severity=ERROR component=worker retryable=true code=E503
+event=036 severity=ERROR component=worker retryable=true code=E503
+event=037 severity=INFO component=api message=healthy
+event=038 severity=ERROR component=worker retryable=true code=E503
+event=039 severity=ERROR component=worker retryable=true code=E503
+event=040 severity=INFO component=cache message=hit
+event=041 severity=ERROR component=worker retryable=true code=E503
+event=042 severity=ERROR component=worker retryable=true code=E503
+event=043 severity=INFO component=api message=healthy
+event=044 severity=ERROR component=worker retryable=true code=E503
+event=045 severity=ERROR component=worker retryable=true code=E503
+event=046 severity=INFO component=cache message=hit
+event=047 severity=ERROR component=worker retryable=true code=E503
+event=048 severity=ERROR component=worker retryable=true code=E503
+event=049 severity=INFO component=api message=healthy
+event=050 severity=ERROR component=worker retryable=true code=E503
+event=051 severity=ERROR component=worker retryable=true code=E503
+event=052 severity=INFO component=cache message=hit
+event=053 severity=ERROR component=worker retryable=true code=E503
+event=054 severity=ERROR component=worker retryable=true code=E503
+event=055 severity=INFO component=api message=healthy
+event=056 severity=ERROR component=worker retryable=true code=E503
+event=057 severity=ERROR component=worker retryable=true code=E503
+event=058 severity=INFO component=cache message=hit
+event=059 severity=ERROR component=worker retryable=true code=E503
+event=060 severity=ERROR component=worker retryable=true code=E503
+event=061 severity=INFO component=api message=healthy
+event=062 severity=ERROR component=worker retryable=true code=E503
+event=063 severity=ERROR component=worker retryable=true code=E503
+event=064 severity=INFO component=cache message=hit
+event=065 severity=ERROR component=worker retryable=true code=E503
+event=066 severity=ERROR component=worker retryable=true code=E503
+event=067 severity=INFO component=api message=healthy
+event=068 severity=ERROR component=worker retryable=true code=E503
+event=069 severity=ERROR component=worker retryable=true code=E503
+event=070 severity=INFO component=cache message=hit
+event=071 severity=ERROR component=worker retryable=true code=E503
+event=072 severity=ERROR component=worker retryable=true code=E503
+event=073 severity=INFO component=api message=healthy
+event=074 severity=ERROR component=worker retryable=true code=E503
+event=075 severity=ERROR component=worker retryable=true code=E503
+event=076 severity=INFO component=cache message=hit
+event=077 severity=ERROR component=worker retryable=true code=E503
+event=078 severity=ERROR component=worker retryable=true code=E503
+event=079 severity=INFO component=api message=healthy
+event=080 severity=ERROR component=worker retryable=true code=E503
+event=081 severity=ERROR component=worker retryable=true code=E503
+event=082 severity=INFO component=cache message=hit
+event=083 severity=ERROR component=worker retryable=true code=E503
+event=084 severity=ERROR component=worker retryable=true code=E503
+event=085 severity=INFO component=api message=healthy
+event=086 severity=ERROR component=worker retryable=true code=E503
+event=087 severity=ERROR component=worker retryable=true code=E503
+event=088 severity=INFO component=cache message=hit
+event=089 severity=ERROR component=worker retryable=true code=E503
+event=090 severity=ERROR component=worker retryable=true code=E503

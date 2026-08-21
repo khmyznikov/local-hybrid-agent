@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "local-qwen-sidekick": {
+      "command": "C:\\Dev\\vllm-qwen38-bench\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Dev\\vllm-qwen38-bench\\local_sidekick_mcp.py"
+      ],
+      "env": {
+        "LOCAL_SIDEKICK_BASE_URL": "$LOCAL_SIDEKICK_BASE_URL",
+        "LOCAL_SIDEKICK_API_KEY": "$LOCAL_SIDEKICK_API_KEY",
+        "LOCAL_SIDEKICK_MODEL": "$LOCAL_SIDEKICK_MODEL",
+        "LOCAL_SIDEKICK_TIMEOUT_SECONDS": "$LOCAL_SIDEKICK_TIMEOUT_SECONDS",
+        "LOCAL_SIDEKICK_MAX_CONTEXT_CHARS": "$LOCAL_SIDEKICK_MAX_CONTEXT_CHARS"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "extract-version",
+    "prompt": "Read this text and return exactly the version after 'release=' with no other text: status=green release=7.14.3 region=west",
+    "expected_regex": "^7\\.14\\.3$",
+    "hybrid_instruction": "Delegate the extraction to local-qwen-sidekick exactly once, verify its answer against the source text yourself, then return only the version."
+  },
+  {
+    "name": "classify-log",
+    "prompt": "Classify this log as exactly one of OK, RETRYABLE, or FATAL and return only that label: 'HTTP 503 upstream temporarily unavailable; Retry-After: 5'",
+    "expected_regex": "^RETRYABLE$",
+    "hybrid_instruction": "Delegate the classification to local-qwen-sidekick exactly once, verify the label yourself, then return only the label."
+  },
+  {
+    "name": "bounded-reasoning",
+    "prompt": "Return only the integer answer: A job has 18 independent files. Three workers each process one file every 4 seconds. Ignoring overhead, how many seconds are required?",
+    "expected_regex": "^24$",
+    "hybrid_instruction": "Use local-qwen-sidekick for a proposed calculation exactly once, verify the arithmetic yourself, then return only the integer."
+  }
+]
