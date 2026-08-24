@@ -6,29 +6,44 @@ NVIDIA RTX Spark N1X running Windows 11 ARM64 and WSL2 Ubuntu ARM64.
 The project includes:
 
 - A validated vLLM/FlashInfer WSL setup for SM12.1.
-- An OpenAI-compatible local server with FP8 KV cache and CUDA decode graphs.
+- An OpenAI-compatible local server with explicit quality and capacity profiles.
 - Direct-local GitHub Copilot CLI BYOK launchers.
 - A cloud-primary MCP sidekick with deterministic search, local model calls,
   full local Copilot-agent delegation, and parallel small-agent batching.
 - Reproducible context, fidelity, MTP, cache, concurrency, and
   cloud-credit evaluation tools.
 
-## Validated Local Profile
+## Validated Local Profiles
 
 - Checkpoint: `gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090`
 - Runtime: vLLM 0.27.1, PyTorch CUDA 13.x, FlashInfer 0.6.16.post3
 - GPU: RTX Spark N1X, SM12.1, 32,704 MiB partition
 - Resident model: approximately 16.19 GiB
-- FP8 hybrid cache: 11 GiB / 351,058 tokens
-- Native request limit: 262,144 tokens
+- Default quality profile: BF16 KV, 11 GiB / 175,529 tokens, 131,072-token limit
+- Opt-in capacity profile: FP8 KV, 11 GiB / 351,058 tokens, 262,144-token limit
 - Active requests: up to 4
 - Decode graphs: batch sizes 1, 2, and 4
 - Local endpoint: `http://127.0.0.1:8001/v1`
 - Served model: `qwen3.8-27b-local`
 
-The complete 262,080-token prompt plus 32 output tokens passed. Four short
-requests completed concurrently with similar per-request latency to a single
-short request.
+The capacity profile completed a 262,080-token prompt plus 32 output tokens.
+Its checkpoint does not contain q/k/v/prob attention scale tensors, so vLLM
+uses scale 1.0 and warns that FP8 attention may lose accuracy. It is not the
+default quality profile.
+
+A controlled greedy literal/tool-call canary at 40K and 96K produced identical
+output token IDs with BF16 and FP8 KV under pinned FlashInfer attention. This is
+a narrow regression result, not evidence that uncalibrated FP8 is equivalent on
+arbitrary agentic workloads. The included fidelity probe should be rerun with
+representative captured work after changing any inference component.
+
+The same canary compared the Gittensor capacity profile with
+`unsloth/Qwen3.8-27B-NVFP4` at 40K, 96K, and 240K. Both checkpoints passed and
+produced identical output token IDs. Gittensor used 26.4% less resident model
+memory and had lower elapsed time at every tier; Unsloth supplied calibrated
+k/v scales and avoided Gittensor's k/v scale-1 fallback. See
+[QWEN38_NVFP4_COMPARISON.md](QWEN38_NVFP4_COMPARISON.md) for methodology,
+measurements, caveats, and the checkpoint recommendation.
 
 ## Quick Start
 
@@ -39,6 +54,12 @@ Start the local server from PowerShell:
 
 ```powershell
 & .\start_qwen38_copilot_server.ps1
+```
+
+Request the maximum-context FP8 profile explicitly:
+
+```powershell
+& .\start_qwen38_copilot_server.ps1 -Profile Capacity
 ```
 
 Run the entire Copilot CLI harness against local Qwen:
@@ -101,8 +122,10 @@ choosing a routing policy.
 - `local_sidekick_mcp.py`: MCP bridge and admission control.
 - `evaluate_hybrid_copilot.py`: local/cloud/hybrid evaluator.
 - `benchmark_qwen38_*.py`: long-context, cache, fidelity, and MTP tests.
+- `QWEN38_NVFP4_COMPARISON.md`: controlled Gittensor/Unsloth comparison.
 - `windows_native_runtime_gaps.md`: native Windows ARM64 runtime gaps.
 - `prebuild_flashinfer_fp4_wsl.py`: constrained-memory FP4 JIT prebuild.
+- `sync_qwen38_reference_template.py`: pinned first-party template audit input.
 - `shard_qwen38_raw.py`: safetensors resharing utility.
 
 Generated model files, wheels, virtual environments, logs, traces, metrics, and

@@ -25,34 +25,91 @@ custom-provider selection is process-wide. Therefore a built-in subagent cannot
 use vLLM while its parent uses GitHub routing in the same process. The nested
 process is the compatibility bridge.
 
-## Server profile
+## Server profiles
 
-The launcher uses the validated N1X profile:
+The launcher defaults to the fidelity-oriented N1X profile:
 
 - Model: `gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090`
 - OpenAI model name: `qwen3.8-27b-local`
 - URL: `http://127.0.0.1:8001/v1`
 - API key: `local-copilot`
-- FP8 hybrid cache: 11 GiB / 351,058 tokens
-- Native request limit: 262,144 tokens
+- BF16 KV cache: 11 GiB / 175,529 tokens
+- Request limit: 131,072 tokens
 - Up to four active requests (`max_num_seqs=4`) with decode graphs captured for
   batches 1, 2, and 4
 - FlashInfer SM121 ModelOpt NVFP4 linear kernels
-- FlashInfer full attention, Triton/FLA GDN
+- Pinned FlashInfer full attention, Triton/FLA GDN
 - `FULL_DECODE_ONLY` CUDA graph, no Inductor
 - `qwen3_xml` tool-call parser
 - Thinking disabled by default for Copilot requests to reduce local agent-loop
   latency; the primary cloud model retains responsibility for deep reasoning
+
+Use `-Profile Capacity` on the server launcher, or `-ServerProfile Capacity` on
+either Copilot launcher, for an FP8 KV cache with 351,058 shared slots and the
+262,144-token native limit. The checkpoint contains no q/k/v/prob attention
+scale tensors. In this mode vLLM substitutes 1.0 and emits accuracy warnings,
+so use it when context capacity is more important than numerical conservatism.
+The MCP capacity report and nested Copilot prompt limit follow the selected
+profile.
+
+The checkpoint ships a custom Qwen3.8 compatibility template. It differs from
+the current first-party template, so both were tested rather than assumed
+equivalent. At 96K the first-party template caused this quant to wrap a correct
+tool call in Markdown fences; the checkpoint template emitted a clean XML
+envelope. The launcher therefore retains the checkpoint template and pins the
+matching `qwen3_xml` parser. The generation config does match the model card
+(`temperature=1.0`, `top_p=0.95`, `top_k=20`). One-shot `extract`, `classify`,
+and `tool-plan` sidekick modes use greedy decoding intentionally; open-ended
+modes inherit the model-card sampler. Thinking remains disabled for bounded
+sidekick work and is not presented as a full reasoning-quality configuration.
 
 The start script keeps a hidden Windows `wsl.exe` host process alive while vLLM
 runs in the foreground inside WSL. This is intentional: detached user/systemd
 units were stopped when the non-lingering WSL interop session ended. The stop
 script terminates both the Windows host and Linux server PID.
 
-The full 262,080-token prompt plus 32 output tokens completed with 2,179 MiB
+Under the capacity profile, the full 262,080-token prompt plus 32 output tokens completed with 2,179 MiB
 physical GPU headroom and no meaningful swap. With four sequence slots and
 batch 1/2/4 graphs, the persistent server uses about 30.8 GiB after warmup and
 retains about 1.8-2.0 GiB free.
+
+## Fidelity controls
+
+`benchmark_qwen38_long_context_fidelity.py` renders a selected chat template
+and records its path/hash, prompt hashes, output token IDs, tool-call structure,
+literal arguments, KV dtype, attention backend, and elapsed time. Controlled
+40K and 96K runs passed under:
+
+- BF16 KV with FlashInfer attention
+- FP8 KV with FlashInfer attention
+- BF16 KV with Triton attention
+
+The BF16/FlashInfer and FP8/FlashInfer outputs had identical prompt hashes,
+output hashes, and token IDs for this canary. The backend variants also produced
+the same tool call. Keep the backend pinned anyway: vLLM `auto` selected FA2 for
+BF16 and FlashInfer for FP8, and a runtime upgrade could change that decision.
+The strict check rejects Markdown fences or any other text outside the tool
+envelope. One passing canary does not rule out prompt-dependent divergence.
+
+`sync_qwen38_reference_template.py` downloads the exact first-party template
+used in this comparison and rejects a changed upstream hash. Pass its output as
+`BENCHMARK_CHAT_TEMPLATE` to the fidelity probe; leaving that variable unset
+tests the checkpoint template used by the server.
+
+### Checkpoint comparison
+
+The long-context canary also compared the Gittensor capacity profile with the
+Unsloth Dynamic NVFP4 checkpoint at 40K, 96K, and 240K. Both passed strict tool
+validation and produced identical output token IDs at every tier. Gittensor was
+4.4-13.7% lower in elapsed time and left substantially more cache headroom.
+Unsloth contained calibrated k/v scales and emitted none of Gittensor's k/v
+scale-fallback warnings, but its larger mixed-precision checkpoint used 20.47
+GiB of resident model memory versus 16.19 GiB.
+
+The operational recommendation remains Gittensor with BF16 KV for routine local
+sidekick work. Use Unsloth with FP8 KV as a numerically more conservative k/v
+alternative when reduced cache capacity is acceptable. Full methodology and
+caveats are in [QWEN38_NVFP4_COMPARISON.md](QWEN38_NVFP4_COMPARISON.md).
 
 ## Concurrency
 
@@ -83,7 +140,7 @@ prompts increase aggregate work but raise latency. Two concurrent ~128K prompts
 also fit (256,048 prompt tokens total): one completed in 150 s and the other in
 287 s. This is useful queue processing, not interactive latency improvement.
 
-The 351,058-token cache is shared across active requests. Practical combinations
+The capacity profile's 351,058-token cache is shared across active requests. Practical combinations
 are approximately one 262K request, two 128K requests, or four 64K requests;
 request metadata and aligned GDN state require some reserve. At maximum native
 context there is only room for one request. For interactive work, use up to four
@@ -126,6 +183,12 @@ Start or confirm the server:
 & C:\Dev\vllm-qwen38-bench\start_qwen38_copilot_server.ps1
 ```
 
+Start the capacity profile when a request must exceed 131,072 tokens:
+
+```powershell
+& C:\Dev\vllm-qwen38-bench\start_qwen38_copilot_server.ps1 -Profile Capacity
+```
+
 Run Copilot entirely against local Qwen:
 
 ```powershell
@@ -145,7 +208,9 @@ Arguments after the launcher name are passed to Copilot. For example:
 ```
 
 Use `-ServerPort` when changing the local server port; other short flags such
-as Copilot's `-p` pass through to Copilot unchanged.
+as Copilot's `-p` pass through to Copilot unchanged. Use
+`-ServerProfile Capacity` with a Copilot launcher to opt into FP8 KV and the
+larger prompt limit.
 
 Stop the server:
 

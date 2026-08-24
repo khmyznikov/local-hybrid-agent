@@ -31,6 +31,14 @@ API_KEY = os.getenv("LOCAL_SIDEKICK_API_KEY", "local-copilot")
 MODEL = os.getenv("LOCAL_SIDEKICK_MODEL", "qwen3.8-27b-local")
 TIMEOUT_SECONDS = int(os.getenv("LOCAL_SIDEKICK_TIMEOUT_SECONDS", "300"))
 MAX_CONTEXT_CHARS = int(os.getenv("LOCAL_SIDEKICK_MAX_CONTEXT_CHARS", "60000"))
+PROFILE = os.getenv("LOCAL_SIDEKICK_PROFILE", "quality").lower()
+SHARED_CACHE_TOKENS = int(
+    os.getenv("LOCAL_SIDEKICK_SHARED_CACHE_TOKENS", "175529")
+)
+NATIVE_MAX_REQUEST_TOKENS = int(
+    os.getenv("LOCAL_SIDEKICK_NATIVE_MAX_REQUEST_TOKENS", "131072")
+)
+MAX_PROMPT_TOKENS = int(os.getenv("LOCAL_SIDEKICK_MAX_PROMPT_TOKENS", "120000"))
 ROOT = Path(os.getenv("LOCAL_SIDEKICK_ROOT", os.getcwd())).resolve()
 METRICS_PATH = Path(
     os.getenv(
@@ -41,31 +49,43 @@ METRICS_PATH = Path(
 
 CAPACITY_PROFILE = {
     "model": MODEL,
+    "profile": PROFILE,
     "max_active_sequences": 4,
-    "shared_cache_tokens": 351_058,
-    "native_max_request_tokens": 262_144,
+    "shared_cache_tokens": SHARED_CACHE_TOKENS,
+    "native_max_request_tokens": NATIVE_MAX_REQUEST_TOKENS,
+    "kv_cache_dtype": "bfloat16" if PROFILE == "quality" else "fp8",
     "workload_classes": {
         "small": {
             "max_parallel": 4,
-            "recommended_max_tokens_per_request": 65_536,
+            "recommended_max_tokens_per_request": min(
+                32_768 if PROFILE == "quality" else 65_536,
+                NATIVE_MAX_REQUEST_TOKENS,
+            ),
             "use_for": "bounded read/search/tool tasks and short generation",
         },
         "medium": {
             "max_parallel": 2,
-            "recommended_max_tokens_per_request": 131_072,
+            "recommended_max_tokens_per_request": min(
+                65_536 if PROFILE == "quality" else 131_072,
+                NATIVE_MAX_REQUEST_TOKENS,
+            ),
             "use_for": "larger repository/context tasks; expect higher latency",
         },
         "large": {
             "max_parallel": 1,
-            "recommended_max_tokens_per_request": 262_144,
+            "recommended_max_tokens_per_request": NATIVE_MAX_REQUEST_TOKENS,
             "use_for": "one exclusive maximum-context task",
         },
     },
-    "measured_behavior": {
-        "four_short_requests_mean_latency_seconds": 21.65,
-        "two_128k_prompts_complete": True,
-        "large_prefills_are_effectively_queued": True,
-    },
+    "measured_behavior": (
+        {
+            "four_short_requests_mean_latency_seconds": 21.65,
+            "two_128k_prompts_complete": True,
+            "large_prefills_are_effectively_queued": True,
+        }
+        if PROFILE == "capacity"
+        else {"quality_profile_concurrency_not_benchmarked": True}
+    ),
 }
 
 
@@ -283,11 +303,11 @@ def call_local_model(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0,
             "max_tokens": max(64, min(int(max_tokens), 4096)),
             "stream": False,
             "chat_template_kwargs": {"enable_thinking": False},
         }
+        | ({"temperature": 0} if mode in {"extract", "classify", "tool-plan"} else {})
     ).encode("utf-8")
     request = urllib.request.Request(
         f"{BASE_URL}/chat/completions",
@@ -390,7 +410,7 @@ def call_local_agent(arguments: dict[str, Any]) -> tuple[str, dict[str, Any], fl
                 "COPILOT_PROVIDER_API_KEY": API_KEY,
                 "COPILOT_PROVIDER_WIRE_API": "completions",
                 "COPILOT_MODEL": MODEL,
-                "COPILOT_PROVIDER_MAX_PROMPT_TOKENS": "240000",
+                "COPILOT_PROVIDER_MAX_PROMPT_TOKENS": str(MAX_PROMPT_TOKENS),
                 "COPILOT_PROVIDER_MAX_OUTPUT_TOKENS": "8192",
                 "COPILOT_HOME": copilot_home,
             }

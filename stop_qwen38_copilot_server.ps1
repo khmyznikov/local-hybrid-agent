@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $windowsPidFile = Join-Path $PSScriptRoot ".qwen38-copilot-wsl.pid"
+$stateFile = Join-Path $PSScriptRoot ".qwen38-copilot-profile.json"
 
 if (Test-Path $windowsPidFile) {
     $windowsPid = [int](Get-Content $windowsPidFile -Raw)
@@ -13,6 +14,7 @@ if (Test-Path $windowsPidFile) {
     }
     Remove-Item $windowsPidFile -Force
 }
+Remove-Item $stateFile -Force -ErrorAction SilentlyContinue
 
 $bashScript = @'
 set -euo pipefail

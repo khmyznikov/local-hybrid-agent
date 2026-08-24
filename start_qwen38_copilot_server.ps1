@@ -3,6 +3,8 @@ param(
     [int]$Port = 8001,
     [ValidateRange(1, 4)]
     [int]$MaxNumSeqs = 4,
+    [ValidateSet("Quality", "Capacity")]
+    [string]$Profile = "Quality",
     [string]$Distribution = "Ubuntu",
     [int]$WaitSeconds = 180
 )
@@ -10,11 +12,41 @@ param(
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://127.0.0.1:$Port"
 $windowsPidFile = Join-Path $PSScriptRoot ".qwen38-copilot-wsl.pid"
+$stateFile = Join-Path $PSScriptRoot ".qwen38-copilot-profile.json"
+$profileSettings = switch ($Profile) {
+    "Quality" {
+        @{
+            KvCacheDtype = "bfloat16"
+            MaxModelLen = 131072
+        }
+    }
+    "Capacity" {
+        @{
+            KvCacheDtype = "fp8"
+            MaxModelLen = 262144
+        }
+    }
+}
+$desiredState = [ordered]@{
+    profile = $Profile
+    port = $Port
+    maxNumSeqs = $MaxNumSeqs
+}
 
 try {
     Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/health" -TimeoutSec 2 | Out-Null
-    Write-Host "Qwen server is already healthy at $baseUrl/v1"
-    return
+    if (Test-Path $stateFile) {
+        $currentState = Get-Content $stateFile -Raw | ConvertFrom-Json
+        if (
+            $currentState.profile -eq $Profile -and
+            $currentState.port -eq $Port -and
+            $currentState.maxNumSeqs -eq $MaxNumSeqs
+        ) {
+            Write-Host "Qwen $Profile server is already healthy at $baseUrl/v1"
+            return
+        }
+    }
+    Write-Host "Restarting the healthy server with the $Profile profile"
 } catch {
 }
 
@@ -25,6 +57,7 @@ if (Test-Path $windowsPidFile) {
     }
     Remove-Item $windowsPidFile -Force
 }
+Remove-Item $stateFile -Force -ErrorAction SilentlyContinue
 
 $bashScript = @'
 set -euo pipefail
@@ -58,14 +91,16 @@ exec env \
     --load-format safetensors \
     --safetensors-load-strategy lazy \
     --language-model-only \
-    --max-model-len 262144 \
+    --max-model-len __MAX_MODEL_LEN__ \
     --max-num-seqs __MAX_NUM_SEQS__ \
     --max-num-batched-tokens 4096 \
     --gpu-memory-utilization 0.01 \
     --kv-cache-memory-bytes 11811160064 \
-    --kv-cache-dtype fp8 \
+    --kv-cache-dtype __KV_CACHE_DTYPE__ \
     --disable-custom-all-reduce \
     --gdn-prefill-backend triton \
+    --attention-backend FLASHINFER \
+    --generation-config /home/gkhmyznikov/models/Qwen3.8-27B-NVFP4-RTX5090 \
     --enable-auto-tool-choice \
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
@@ -76,6 +111,14 @@ exec env \
 '@
 $bashScript = $bashScript.Replace("__PORT__", $Port.ToString())
 $bashScript = $bashScript.Replace("__MAX_NUM_SEQS__", $MaxNumSeqs.ToString())
+$bashScript = $bashScript.Replace(
+    "__MAX_MODEL_LEN__",
+    $profileSettings.MaxModelLen.ToString()
+)
+$bashScript = $bashScript.Replace(
+    "__KV_CACHE_DTYPE__",
+    $profileSettings.KvCacheDtype
+)
 $bashScript = $bashScript.Replace("`r`n", "`n")
 $encodedScript = [Convert]::ToBase64String(
     [Text.Encoding]::UTF8.GetBytes($bashScript)
@@ -99,8 +142,11 @@ $deadline = [DateTime]::UtcNow.AddSeconds($WaitSeconds)
 do {
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/health" -TimeoutSec 2 | Out-Null
+        $desiredState | ConvertTo-Json | Set-Content -Path $stateFile
         Write-Host "Qwen OpenAI endpoint is ready at $baseUrl/v1"
         Write-Host "Model: qwen3.8-27b-local"
+        Write-Host "Profile: $Profile ($($profileSettings.KvCacheDtype) KV, max $($profileSettings.MaxModelLen) tokens)"
+        Write-Host "Template: checkpoint compatibility template"
         return
     } catch {
         if ($wslProcess.HasExited) {
@@ -115,4 +161,5 @@ if (-not $wslProcess.HasExited) {
     Stop-Process -Id $wslProcess.Id -Force
 }
 Remove-Item $windowsPidFile -Force -ErrorAction SilentlyContinue
+Remove-Item $stateFile -Force -ErrorAction SilentlyContinue
 throw "Qwen server did not become healthy within $WaitSeconds seconds"

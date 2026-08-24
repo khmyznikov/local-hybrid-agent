@@ -14,7 +14,7 @@ N1X. It intentionally omits performance measurements.
 - PyTorch with CUDA 13.x
 - FlashInfer 0.6.16.post3
 - Qwen3.8-27B ModelOpt NVFP4 checkpoint
-- FP8 KV cache
+- BF16 KV cache by default; optional FP8 capacity profile
 - FlashInfer attention and ModelOpt NVFP4 linear kernels
 - Triton/FLA Gated DeltaNet kernels
 
@@ -154,18 +154,43 @@ Use the PowerShell launcher:
 & .\start_qwen38_copilot_server.ps1
 ```
 
-The launcher configures:
+The default quality profile configures:
 
 - OpenAI-compatible endpoint on `127.0.0.1:8001`
 - Served model name `qwen3.8-27b-local`
-- 11 GiB explicit FP8 hybrid cache
-- 262,144-token native model limit
+- 11 GiB explicit BF16 hybrid cache
+- 131,072-token request limit
 - Four active sequence slots
 - Decode graphs for batch sizes 1, 2, and 4
 - No Inductor compilation
 - FlashInfer autotuning and optional warmups disabled
 - `qwen3_xml` tool parsing
 - Qwen thinking disabled by default for bounded local-agent work
+
+The attention backend is pinned because backend selection changes floating-point
+reduction paths. The checkpoint's custom compatibility template is also kept
+explicitly: unlike the current first-party template, it produced a strict XML
+tool envelope at 96K in the controlled canary. Model-card sampling defaults
+remain active for open-ended sidekick calls.
+
+Use the capacity profile only when a request must exceed 131,072 tokens:
+
+```powershell
+& .\start_qwen38_copilot_server.ps1 -Profile Capacity
+```
+
+Capacity mode uses FP8 KV and restores the 262,144-token limit. The checkpoint
+does not provide q/k/v/prob attention scales; vLLM falls back to 1.0 and warns
+of possible accuracy loss. Do not treat a successful maximum-context allocation
+test as a long-context correctness result.
+
+An alternate `unsloth/Qwen3.8-27B-NVFP4` checkpoint includes calibrated k/v
+scales and completed the strict 40K/96K/240K tool canary. Its larger mixed
+FP8/NVFP4 recipe used 20.47 GiB of resident model memory. On this partition an
+8.25 GiB cache left insufficient execution workspace and OOMed; 7.75 GiB was
+stable and exposed 246,311 slots. See
+[QWEN38_NVFP4_COMPARISON.md](QWEN38_NVFP4_COMPARISON.md) before changing the
+launcher checkpoint.
 
 The process is owned by a hidden Windows `wsl.exe` host so the WSL distribution
 remains alive. Stop it with:
@@ -188,14 +213,15 @@ the endpoint is exposed beyond the local machine.
 
 ## Capacity and Stability
 
-The validated 11 GiB cache exposes 351,058 shared token slots. Practical
+The default BF16 cache exposes 175,529 shared token slots and supports one
+131,072-token request. The optional FP8 cache exposes 351,058 shared token slots. Practical
 placements are approximately:
 
 - One maximum-context request
 - Two medium/large requests around half the native context
 - Four small/medium requests around one quarter of the native context
 
-The full native-window request completed without meaningful swap. Two large
+The full native-window request completed under the capacity profile without meaningful swap. Two large
 requests around half context also completed, but their prefills behaved mostly
 as queued work. Four short requests are supported by the active sequence slots.
 
@@ -203,6 +229,12 @@ Use `benchmark_qwen38_wsl_limits.py` to validate capacity and memory after
 changing hardware partitioning, runtime packages, checkpoint, cache size, or
 graph configuration. The benchmark records token counts, elapsed times, GPU
 memory, WSL memory, swap, PSI, faults, and OOM events.
+
+Use `benchmark_qwen38_long_context_fidelity.py` after changing KV dtype,
+attention backend, checkpoint, template, or runtime. It checks real rendered
+tool calls and exact literals at configurable context tiers. Extend its canary
+with captured domain workloads; synthetic repeated-token capacity tests are not
+an agent-quality evaluation.
 
 Example init-only capacity check:
 

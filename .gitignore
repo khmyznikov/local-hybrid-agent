@@ -21,6 +21,7 @@ models/
 !.env.example
 *.pid
 .qwen38-copilot-wsl.pid
+.qwen38-copilot-profile.json
 
 # Generated logs, traces, and measurements
 *.log
