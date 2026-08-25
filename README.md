@@ -10,6 +10,8 @@ The project includes:
 - Direct-local GitHub Copilot CLI BYOK launchers.
 - A cloud-primary MCP sidekick with deterministic search, local model calls,
   full local Copilot-agent delegation, and parallel small-agent batching.
+- A LiteLLM pre-routing experiment combining local Gittensor Qwen with the
+  GitHub Copilot model pool through one BYOM endpoint.
 - Reproducible context, fidelity, MTP, cache, concurrency, and
   cloud-credit evaluation tools.
 
@@ -102,6 +104,8 @@ The advertised placement policy is:
 
 See [HYBRID_COPILOT.md](HYBRID_COPILOT.md) for architecture, commands,
 correctness results, concurrency measurements, and cloud-credit tradeoffs.
+See [LITELLM_HYBRID_EXPERIMENT.md](LITELLM_HYBRID_EXPERIMENT.md) for the WSL
+pre-routing setup and focused SWE-bench Verified pilot.
 
 ## Key Measurements
 
@@ -111,6 +115,15 @@ correctness results, concurrency measurements, and cloud-credit tradeoffs.
   credits, saving 49.2% of cloud credits with a 2.92x latency penalty.
 - Two concurrent approximately 128K prompts fit but behaved mostly as queued
   prefills rather than latency-improving parallel work.
+- The six-case WSL LiteLLM/SWE-bench pilot resolved 5/6 focused tests: 2/3 on
+  local Gittensor and 3/3 on Copilot GPT-5.4. Cloud-only also resolved 5/6.
+  Hybrid reduced Copilot calls by 39.0% and cloud token volume by 40.4%, but
+  increased total agent time by 7.41x.
+- GPT-5.6 Sol cloud-only also resolved 5/6, using 1.9% fewer tokens but taking
+  2.01x as long as GPT-5.4. The Sol hybrid resolved 5/6 in its corrected latest
+  results, reduced Sol token volume by 53.8%, and took 4.89x as long as forced
+  Sol. Sol requires the Responses API; one local Responses adapter failure led
+  to explicit hybrid-alias cloud fallbacks.
 
 These are machine-specific engineering measurements, not general model quality
 claims. Run representative workloads and use the included JSONL evaluator before
@@ -122,6 +135,7 @@ choosing a routing policy.
 - `local_sidekick_mcp.py`: MCP bridge and admission control.
 - `evaluate_hybrid_copilot.py`: local/cloud/hybrid evaluator.
 - `benchmark_qwen38_*.py`: long-context, cache, fidelity, and MTP tests.
+- `hybrid_swe_experiment.py`: WSL-native LiteLLM/SWE-bench pilot harness.
 - `QWEN38_NVFP4_COMPARISON.md`: controlled Gittensor/Unsloth comparison.
 - `windows_native_runtime_gaps.md`: native Windows ARM64 runtime gaps.
 - `prebuild_flashinfer_fp4_wsl.py`: constrained-memory FP4 JIT prebuild.

@@ -1,0 +1,98 @@
+model_list:
+  - model_name: qwen-local
+    litellm_params:
+      model: openai/qwen3.8-27b-local
+      api_base: http://127.0.0.1:8001/v1
+      api_key: os.environ/LOCAL_QWEN_API_KEY
+      max_parallel_requests: 4
+      timeout: 300
+    model_info:
+      mode: chat
+      max_input_tokens: 120000
+      max_output_tokens: 8192
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  - model_name: copilot-gpt-5.4
+    litellm_params:
+      model: github_copilot/gpt-5.4
+      timeout: 300
+    model_info:
+      mode: chat
+      max_input_tokens: 922000
+      max_output_tokens: 128000
+
+  - model_name: qwen-local-responses
+    litellm_params:
+      model: openai/qwen3.8-27b-local
+      api_base: http://127.0.0.1:8001/v1
+      api_key: os.environ/LOCAL_QWEN_API_KEY
+      max_parallel_requests: 4
+      timeout: 300
+    model_info:
+      mode: responses
+      max_input_tokens: 120000
+      max_output_tokens: 8192
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  - model_name: copilot-gpt-5.6-sol
+    litellm_params:
+      model: github_copilot/gpt-5.6-sol
+      timeout: 300
+    model_info:
+      mode: responses
+      max_input_tokens: 922000
+      max_output_tokens: 128000
+
+  - model_name: hybrid-copilot
+    litellm_params:
+      model: auto_router/complexity_router
+      drop_params: true
+      complexity_router_config:
+        tiers:
+          SIMPLE: qwen-local
+          MEDIUM: qwen-local
+          COMPLEX: copilot-gpt-5.4
+          REASONING: copilot-gpt-5.4
+        session_affinity: true
+        session_affinity_ttl_seconds: 7200
+        complexity_router_default_model: copilot-gpt-5.4
+
+  - model_name: hybrid-copilot-sol
+    model_info:
+      mode: responses
+    litellm_params:
+      model: auto_router/complexity_router
+      drop_params: true
+      complexity_router_config:
+        tiers:
+          SIMPLE: qwen-local-responses
+          MEDIUM: qwen-local-responses
+          COMPLEX: copilot-gpt-5.6-sol
+          REASONING: copilot-gpt-5.6-sol
+        session_affinity: true
+        session_affinity_ttl_seconds: 7200
+        complexity_router_default_model: copilot-gpt-5.6-sol
+
+router_settings:
+  enable_pre_call_checks: true
+  num_retries: 1
+  timeout: 300
+  fallbacks:
+    - qwen-local:
+        - copilot-gpt-5.4
+    - qwen-local-responses:
+      - copilot-gpt-5.6-sol
+    - hybrid-copilot:
+      - copilot-gpt-5.4
+    - hybrid-copilot-sol:
+      - copilot-gpt-5.6-sol
+
+litellm_settings:
+  disable_copilot_system_to_assistant: true
+  callbacks:
+    - litellm_hybrid_observer.hybrid_observer
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

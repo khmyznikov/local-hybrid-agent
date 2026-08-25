@@ -1,0 +1,11 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "cases": [
+    "pytest-dev__pytest-7571",
+    "pytest-dev__pytest-7521",
+    "sphinx-doc__sphinx-9367",
+    "sphinx-doc__sphinx-10323",
+    "pylint-dev__pylint-4970",
+    "pylint-dev__pylint-6903"
+  ]
+}

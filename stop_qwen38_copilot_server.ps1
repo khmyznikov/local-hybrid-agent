@@ -9,7 +9,8 @@ $stateFile = Join-Path $PSScriptRoot ".qwen38-copilot-profile.json"
 
 if (Test-Path $windowsPidFile) {
     $windowsPid = [int](Get-Content $windowsPidFile -Raw)
-    if (Get-Process -Id $windowsPid -ErrorAction SilentlyContinue) {
+    $windowsProcess = Get-Process -Id $windowsPid -ErrorAction SilentlyContinue
+    if ($windowsProcess -and $windowsProcess.ProcessName -eq "wsl") {
         Stop-Process -Id $windowsPid -Force
     }
     Remove-Item $windowsPidFile -Force
@@ -22,7 +23,8 @@ PID_FILE=/home/gkhmyznikov/vllm-qwen38-wsl/qwen38_copilot_server.pid
 
 if [[ -f "$PID_FILE" ]]; then
     PID=$(cat "$PID_FILE")
-    if kill -0 "$PID" 2>/dev/null; then
+    CMD=$(tr '\0' ' ' < "/proc/$PID/cmdline" 2>/dev/null || true)
+    if [[ "$CMD" == *"vllm"* && "$CMD" == *"Qwen3.8-27B-NVFP4-RTX5090"* ]]; then
         kill -TERM "$PID" || true
     fi
     rm -f "$PID_FILE"

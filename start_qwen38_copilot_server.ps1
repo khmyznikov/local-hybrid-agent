@@ -52,7 +52,8 @@ try {
 
 if (Test-Path $windowsPidFile) {
     $oldWindowsPid = [int](Get-Content $windowsPidFile -Raw)
-    if (Get-Process -Id $oldWindowsPid -ErrorAction SilentlyContinue) {
+    $oldWindowsProcess = Get-Process -Id $oldWindowsPid -ErrorAction SilentlyContinue
+    if ($oldWindowsProcess -and $oldWindowsProcess.ProcessName -eq "wsl") {
         Stop-Process -Id $oldWindowsPid -Force
     }
     Remove-Item $windowsPidFile -Force
@@ -67,7 +68,8 @@ LOG_FILE=/home/gkhmyznikov/vllm-qwen38-wsl/qwen38_copilot_server.log
 
 if [[ -f "$PID_FILE" ]]; then
     OLD_PID=$(cat "$PID_FILE")
-    if kill -0 "$OLD_PID" 2>/dev/null; then
+    OLD_CMD=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null || true)
+    if [[ "$OLD_CMD" == *"vllm"* && "$OLD_CMD" == *"Qwen3.8-27B-NVFP4-RTX5090"* ]]; then
         kill -TERM "$OLD_PID" || true
     fi
     rm -f "$PID_FILE"
