@@ -124,6 +124,10 @@ pre-routing setup and focused SWE-bench Verified pilot.
   results, reduced Sol token volume by 53.8%, and took 4.89x as long as forced
   Sol. Sol requires the Responses API; one local Responses adapter failure led
   to explicit hybrid-alias cloud fallbacks.
+- Two new GPT-5.4 cases preserved identical per-case correctness between
+  hybrid and forced cloud. Across the expanded eight-case latest-result view,
+  both resolved 6/8; hybrid reduced cloud calls by 33.3% and cloud tokens by
+  28.2%, while increasing total agent time by 6.00x.
 
 These are machine-specific engineering measurements, not general model quality
 claims. Run representative workloads and use the included JSONL evaluator before

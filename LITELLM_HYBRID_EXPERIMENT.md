@@ -134,13 +134,14 @@ experiment, not expected resolution quality.
 
 ## Executable SWE subset
 
-`hybrid_swe_cases.json` fixes six SWE-bench Verified cases across pytest,
-Sphinx, and Pylint: one local and one cloud-classified case from each repository.
-Every case has a focused official FAIL_TO_PASS test that was validated to fail
-at the base commit on WSL ARM64.
+`hybrid_swe_cases.json` fixes eight SWE-bench Verified cases across pytest,
+Sphinx, and Pylint. The initial pilot used six cases: one local and one
+cloud-classified case from each repository. A follow-up added one new local
+pytest case and one new cloud Sphinx case. Every case has a focused official
+FAIL_TO_PASS test that was validated to fail at the base commit on WSL ARM64.
 
 ```bash
-# Show all-500 routing coverage and the six selected routes.
+# Show all-500 routing coverage and the eight selected routes.
 bash run_hybrid_swe_wsl.sh classify
 
 # Prepare isolated worktrees and Python 3.9 test environments.
@@ -284,6 +285,75 @@ for cost. Local execution preserved quality in two of three routed tasks but
 used long, repeated harness contexts and dominated latency. A better policy
 would reserve local Qwen for bounded one-shot work or sharply cap local agent
 turns before escalating the same task to cloud.
+
+## Two-case GPT-5.4 extension
+
+Two previously unused SWE-bench Verified cases were added after the initial
+pilot. `pytest-dev__pytest-7982` is classified SIMPLE/local, while
+`sphinx-doc__sphinx-9591` is classified COMPLEX/cloud. Both official focused
+tests failed at their base commits in fresh hybrid and forced-cloud worktrees.
+Sphinx 4.2 required historical `sphinxcontrib` pins to avoid a modern extension
+requiring Sphinx 5 before the target test could run.
+
+| Instance | Route | Forced GPT-5.4 | GPT-5.4 hybrid |
+|---|---|---:|---:|
+| `pytest-dev__pytest-7982` | Local | Passed, 18.55 s | Passed, 439.34 s |
+| `sphinx-doc__sphinx-9591` | Cloud | Failed, 107.17 s | Failed, 80.34 s |
+
+The pytest implementations were exact gold-file matches in both modes. Both
+Sphinx agents edited non-gold areas and failed the official assertion after
+agent-authored tests were separated from official scoring. The extension
+therefore preserved correctness exactly: one of two resolved in each mode.
+
+| Metric, two new cases | Forced GPT-5.4 | GPT-5.4 hybrid |
+|---|---:|---:|
+| Focused tests resolved | 1/2 | 1/2 |
+| Agent time | 125.73 s | 519.68 s |
+| Model calls | 37 | 47 |
+| Tool calls | 75 | 69 |
+| Cloud calls | 37 | 28 |
+| Cloud input tokens | 1,338,643 | 1,135,881 |
+| Cloud output tokens | 8,166 | 5,121 |
+| Cloud total tokens | 1,346,809 | 1,141,002 |
+
+Hybrid reduced observed cloud calls by 24.3% and cloud tokens by 15.3%, but
+took 4.13x as long. Only five calls and 78,713 cloud tokens are a direct
+route-controlled saving from moving the pytest case local. The remaining
+observed difference came from independent GPT-5.4 runs taking different agent
+paths on Sphinx and should not be attributed to routing.
+
+The GPT-5.4 result records contain more telemetry than the summary table shows:
+per-call requested, routed, and response models; route tier, score, cause, and
+signals; timestamps, response IDs, latency, and input/output tokens; plus
+agent-level model calls, tool calls, API/session duration, code-change counts,
+changed and gold files, gold-file recall, and official test output. All 96
+forced-cloud and 128 hybrid model starts in the expanded comparison have a
+matching route event. Cached-input tokens, cache-write tokens, hidden reasoning
+tokens, and measured per-request energy are not available.
+
+The original six cases had mean per-call latency of 24.83 seconds on local Qwen
+versus 2.39 seconds on the hybrid cloud lane. The new local pytest case measured
+22.39 seconds per call versus 3.28 seconds when forced to GPT-5.4, confirming
+that the local agent-loop latency gap is stable in this small extension.
+
+Across the expanded eight-case latest-result view:
+
+| Metric | Forced GPT-5.4 | GPT-5.4 hybrid |
+|---|---:|---:|
+| Focused tests resolved | 6/8 | 6/8 |
+| Agent time | 291.68 s | 1,748.88 s |
+| Model calls | 96 | 128 |
+| Tool calls | 167 | 171 |
+| Cloud calls | 96 | 64 |
+| Cloud tokens | 2,776,760 | 1,993,070 |
+
+Hybrid keeps the same 6/8 focused correctness, reduces cloud calls by 33.3%
+and cloud tokens by 28.2%, and increases elapsed time by 6.00x. At uncached
+GPT-5.4 rates, cloud usage is equivalent to $5.134 versus $7.196, saving $2.062
+or 28.7%. Four local-routed cases resolved three of four; four cloud-routed
+cases resolved three of four. Eight hand-selected cases remain far too few for
+a population-quality estimate, but the extension supports the original
+latency/cost tradeoff rather than reversing it.
 
 ## GPT-5.6 Sol cloud-only comparison
 

@@ -21,6 +21,13 @@ CASE_CONFIG = ROOT / "hybrid_swe_cases.json"
 ROUTING_LOG = Path("/home/gkhmyznikov/litellm-hybrid/routing-events.jsonl")
 UV = Path("/home/gkhmyznikov/.local/bin/uv")
 COPILOT = Path("/home/gkhmyznikov/.local/bin/copilot")
+SPHINX_PRE_5_CONTRIB_PINS = [
+    "sphinxcontrib-applehelp==1.0.4",
+    "sphinxcontrib-devhelp==1.0.2",
+    "sphinxcontrib-htmlhelp==2.0.1",
+    "sphinxcontrib-qthelp==1.0.3",
+    "sphinxcontrib-serializinghtml==1.1.5",
+]
 
 MODEL_BY_MODE = {
     "local": "qwen-local",
@@ -234,6 +241,8 @@ def prepare_environment(
             f"pytest=={pytest_version}",
             "setuptools<81",
         ]
+        if int(record["version"].split(".", 1)[0]) < 5:
+            install.extend(SPHINX_PRE_5_CONTRIB_PINS)
     else:
         install = [
             str(UV),
