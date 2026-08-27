@@ -1,0 +1,165 @@
+diff --git a/src/services/api/agentRouting.ts b/src/services/api/agentRouting.ts
+index 32b358e3..2587162a 100644
+--- a/src/services/api/agentRouting.ts
++++ b/src/services/api/agentRouting.ts
+@@ -99,6 +99,7 @@ export function resolveAgentProvider(
+   name: string | undefined,
+   subagentType: string | undefined,
+   settings: SettingsJson | null,
++  includeDefault = true,
+ ): AgentRoute | null {
+   if (!settings) return null
+ 
+@@ -123,7 +124,11 @@ export function resolveAgentProvider(
+   }
+ 
+   // Try name first, then subagentType, then "default"
+-  const candidates = [name, subagentType, 'default'].filter(Boolean) as string[]
++  const candidates = [
++    name,
++    subagentType,
++    ...(includeDefault ? ['default'] : []),
++  ].filter(Boolean) as string[]
+   let modelName: string | undefined
+ 
+   for (const candidate of candidates) {
+@@ -192,7 +197,9 @@ export function resolveAgentRunModelRouting({
+   permissionMode?: PermissionMode
+ }): AgentRunModelRouting {
+   const toolRequestedModel = toolSpecifiedModel?.trim()
+-  if (toolRequestedModel) {
++  // Strict Responses schemas synthesize `inherit`; let a specific named route
++  // override it while preserving explicit non-inherit model choices.
++  if (toolRequestedModel && toolRequestedModel.toLowerCase() !== 'inherit') {
+     // Tool-specified models are explicit. If the request is not a configured
+     // agentModels key, preserve getAgentModel() alias/inherit/custom-ID behavior
+     // instead of falling through to persistent agentRouting.
+@@ -207,7 +214,12 @@ export function resolveAgentRunModelRouting({
+   }
+ 
+   const route =
+-    resolveAgentProvider(agentName, subagentType, settings) ??
++    resolveAgentProvider(
++      agentName,
++      subagentType,
++      settings,
++      toolRequestedModel?.toLowerCase() !== 'inherit',
++    ) ??
+     resolveAgentModelProvider(agentDefinitionModel, settings)
+   if (!route) return { mainLoopModel: resolvedAgentModel }
+   if (isProviderOverride(route)) {
+diff --git a/src/services/api/codexShim.ts b/src/services/api/codexShim.ts
+index 2b1fdebe..49448a92 100644
+--- a/src/services/api/codexShim.ts
++++ b/src/services/api/codexShim.ts
+@@ -990,10 +990,23 @@ async function* codexStreamToAnthropicWithReadOptions(
+   readOptions: CodexStreamReadOptions = {},
+ ): AsyncGenerator<AnthropicStreamEvent> {
+   const messageId = makeMessageId()
++  type ToolBlock = {
++    index: number
++    toolUseId: string
++    emittedArgs: string
++    itemId: string
++    outputIndex?: number
++  }
+   const toolBlocksByItemId = new Map<
+     string,
+-    { index: number; toolUseId: string; emittedArgs: string }
++    ToolBlock
+   >()
++  const toolBlocksByOutputIndex = new Map<number, ToolBlock>()
++  const getToolBlock = (payload: Record<string, any>): ToolBlock | undefined =>
++    toolBlocksByItemId.get(String(payload.item_id ?? payload.item?.id ?? '')) ??
++    (typeof payload.output_index === 'number'
++      ? toolBlocksByOutputIndex.get(payload.output_index)
++      : undefined)
+   let activeTextBlockIndex: number | null = null
+   const thinkFilter = createThinkTagFilter()
+   let nextContentBlockIndex = 0
+@@ -1078,11 +1091,22 @@ async function* codexStreamToAnthropicWithReadOptions(
+           const toolUseId = item.call_id ?? item.id ?? `call_${blockIndex}`
+           const initialArgs =
+             typeof item.arguments === 'string' ? item.arguments : ''
+-          toolBlocksByItemId.set(String(item.id ?? toolUseId), {
++          const itemId = String(item.id ?? toolUseId)
++          const outputIndex =
++            typeof payload.output_index === 'number'
++              ? payload.output_index
++              : undefined
++          const toolBlock: ToolBlock = {
+             index: blockIndex,
+             toolUseId,
+             emittedArgs: initialArgs,
+-          })
++            itemId,
++            outputIndex,
++          }
++          toolBlocksByItemId.set(itemId, toolBlock)
++          if (outputIndex !== undefined) {
++            toolBlocksByOutputIndex.set(outputIndex, toolBlock)
++          }
+           sawToolUse = true
+ 
+           throwIfStreamAborted(signal)
+@@ -1140,7 +1164,7 @@ async function* codexStreamToAnthropicWithReadOptions(
+       }
+ 
+       if (event.event === 'response.function_call_arguments.delta') {
+-        const toolBlock = toolBlocksByItemId.get(String(payload.item_id ?? ''))
++        const toolBlock = getToolBlock(payload)
+         if (toolBlock) {
+           const delta = typeof payload.delta === 'string' ? payload.delta : ''
+           if (delta) {
+@@ -1166,7 +1190,7 @@ async function* codexStreamToAnthropicWithReadOptions(
+       // handling `done`, the tool block closed with `input: {}` and downstream
+       // tool validation failed with "required parameter X is missing" (#1259).
+       if (event.event === 'response.function_call_arguments.done') {
+-        const toolBlock = toolBlocksByItemId.get(String(payload.item_id ?? ''))
++        const toolBlock = getToolBlock(payload)
+         if (toolBlock) {
+           const fullArgs =
+             typeof payload.arguments === 'string' ? payload.arguments : ''
+@@ -1189,7 +1213,7 @@ async function* codexStreamToAnthropicWithReadOptions(
+       if (event.event === 'response.output_item.done') {
+         const item = payload.item
+         if (item?.type === 'function_call') {
+-          const toolBlock = toolBlocksByItemId.get(String(item.id ?? ''))
++          const toolBlock = getToolBlock(payload)
+           if (toolBlock) {
+             // Backstop for backends that skip the dedicated `function_call_arguments.done`
+             // event entirely and only put the full arguments on `output_item.done`.
+@@ -1213,7 +1237,10 @@ async function* codexStreamToAnthropicWithReadOptions(
+               type: 'content_block_stop',
+               index: toolBlock.index,
+             }
+-            toolBlocksByItemId.delete(String(item.id))
++            toolBlocksByItemId.delete(toolBlock.itemId)
++            if (toolBlock.outputIndex !== undefined) {
++              toolBlocksByOutputIndex.delete(toolBlock.outputIndex)
++            }
+           }
+         } else if (item?.type === 'message') {
+           yield* closeActiveTextBlock()
+diff --git a/src/tools/AgentTool/AgentTool.tsx b/src/tools/AgentTool/AgentTool.tsx
+index 384474d7..b689d24f 100644
+--- a/src/tools/AgentTool/AgentTool.tsx
++++ b/src/tools/AgentTool/AgentTool.tsx
+@@ -158,7 +158,9 @@ type AgentToolWorktreeInfo = {
+ export function resolveAgentToolEffectiveIsolation(
+   requestedIsolation: AgentToolIsolation,
+   agentIsolation: AgentToolIsolation,
++  disableIsolation = false,
+ ): AgentToolIsolation {
++  if (disableIsolation) return undefined;
+   return requestedIsolation === 'worktree' || agentIsolation === 'worktree'
+     ? 'worktree'
+     : undefined;
+@@ -623,6 +625,7 @@ export const AgentTool = buildTool({
+     const effectiveIsolation = resolveAgentToolEffectiveIsolation(
+       isolation,
+       selectedAgent.isolation,
++      isEnvTruthy(process.env.OPENCLAUDE_DISABLE_AGENT_WORKTREE_ISOLATION),
+     );
+     assertAgentToolCwdAllowed(cwd, effectiveIsolation);
+     // System prompt + prompt messages: branch on fork path.

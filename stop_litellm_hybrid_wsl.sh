@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PID_FILE=/home/gkhmyznikov/litellm-hybrid/litellm-proxy.pid
+LITELLM_HOME="${LITELLM_HOME:-$HOME/litellm-hybrid}"
+PID_FILE="$LITELLM_HOME/litellm-proxy.pid"
 
 if [[ ! -f "$PID_FILE" ]]; then
     echo "No tracked LiteLLM hybrid proxy"
@@ -9,7 +10,11 @@ if [[ ! -f "$PID_FILE" ]]; then
 fi
 
 pid=$(cat "$PID_FILE")
-command_line=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)
+if [[ -r "/proc/$pid/cmdline" ]]; then
+    command_line=$(tr '\0' ' ' < "/proc/$pid/cmdline")
+else
+    command_line=""
+fi
 if [[ "$command_line" == *"litellm"* && "$command_line" == *"litellm_hybrid_config.yaml"* ]]; then
     kill -TERM "$pid"
     echo "Stopped LiteLLM hybrid proxy PID $pid"

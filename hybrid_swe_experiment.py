@@ -14,13 +14,18 @@ from litellm.router_strategy.complexity_router.complexity_router import (
     ComplexityRouter,
 )
 
-ROOT = Path("/mnt/c/Dev/vllm-qwen38-bench")
-LAB = Path("/home/gkhmyznikov/litellm-hybrid/swebench")
+ROOT = Path(
+    os.getenv("LOCAL_HYBRID_AGENT_ROOT", Path(__file__).resolve().parent)
+)
+LITELLM_HOME = Path(os.getenv("LITELLM_HOME", Path.home() / "litellm-hybrid"))
+LAB = Path(os.getenv("LOCAL_HYBRID_SWEBENCH_HOME", LITELLM_HOME / "swebench"))
 DATASET = LAB / "data/test-00000-of-00001.parquet"
 CASE_CONFIG = ROOT / "hybrid_swe_cases.json"
-ROUTING_LOG = Path("/home/gkhmyznikov/litellm-hybrid/routing-events.jsonl")
-UV = Path("/home/gkhmyznikov/.local/bin/uv")
-COPILOT = Path("/home/gkhmyznikov/.local/bin/copilot")
+ROUTING_LOG = Path(
+    os.getenv("HYBRID_ROUTING_LOG", LITELLM_HOME / "routing-events.jsonl")
+)
+UV = Path(os.getenv("UV", Path.home() / ".local/bin/uv"))
+COPILOT = Path(os.getenv("COPILOT", Path.home() / ".local/bin/copilot"))
 SPHINX_PRE_5_CONTRIB_PINS = [
     "sphinxcontrib-applehelp==1.0.4",
     "sphinxcontrib-devhelp==1.0.2",

@@ -1,0 +1,129 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "evaluation": "official FAIL_TO_PASS focused tests on WSL",
+  "cases": [
+    {
+      "instance_id": "pytest-dev__pytest-7571",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": false,
+      "local_repair": false,
+      "cloud_policy_tokens": 146553,
+      "local_first_cloud_tokens": 9591
+    },
+    {
+      "instance_id": "pytest-dev__pytest-7521",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": false,
+      "local_repair": false,
+      "cloud_policy_tokens": 209862,
+      "local_first_cloud_tokens": 163067
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-9367",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": false,
+      "local_repair": false,
+      "cloud_policy_tokens": 41911,
+      "local_first_cloud_tokens": 9454
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-10323",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": true,
+      "local_repair": true,
+      "cloud_policy_tokens": 209260,
+      "local_first_cloud_tokens": 71507
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4970",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": true,
+      "local_repair": true,
+      "cloud_policy_tokens": 232316,
+      "local_first_cloud_tokens": 73950
+    },
+    {
+      "instance_id": "pylint-dev__pylint-6903",
+      "cloud_policy_resolved": true,
+      "local_first_resolved": true,
+      "cloud_repair": false,
+      "local_repair": true,
+      "cloud_policy_tokens": 57458,
+      "local_first_cloud_tokens": 57050
+    }
+  ],
+  "cloud_implementer_policy": {
+    "resolved": 6,
+    "cases": 6,
+    "repairs": 2,
+    "cloud_calls": 90,
+    "cloud_input_tokens": 877744,
+    "cloud_output_tokens": 19616,
+    "cloud_total_tokens": 897360
+  },
+  "local_first_policy": {
+    "resolved": 6,
+    "cases": 6,
+    "repairs": 3,
+    "cloud_calls": 46,
+    "cloud_input_tokens": 378724,
+    "cloud_output_tokens": 5895,
+    "cloud_total_tokens": 384619,
+    "local_calls": 66,
+    "local_total_tokens": 1078818,
+    "local_request_time_ms": 1791307,
+    "local_energy_kwh_upper_bound_at_90w": 0.044782675,
+    "local_electricity_usd_at_0_20_per_kwh": 0.008956535
+  },
+  "comparison": {
+    "quality_difference": 0,
+    "cloud_calls_saved": 44,
+    "cloud_tokens_saved": 512741,
+    "cloud_token_reduction_percent": 57.138829455291074,
+    "cost_scenarios": {
+      "0%_cached_input": {
+        "cloud_implementer_usd": 2.4886,
+        "local_first_with_electricity_usd": 1.044191535,
+        "net_saved_usd": 1.444408465,
+        "net_reduction_percent": 58.04100558546974
+      },
+      "50%_cached_input": {
+        "cloud_implementer_usd": 1.501138,
+        "local_first_with_electricity_usd": 0.618127035,
+        "net_saved_usd": 0.883010965,
+        "net_reduction_percent": 58.8227707912264
+      },
+      "75%_cached_input": {
+        "cloud_implementer_usd": 1.007407,
+        "local_first_with_electricity_usd": 0.405094785,
+        "net_saved_usd": 0.602312215,
+        "net_reduction_percent": 59.78836905044337
+      },
+      "90%_cached_input": {
+        "cloud_implementer_usd": 0.7111684,
+        "local_first_with_electricity_usd": 0.277275435,
+        "net_saved_usd": 0.433892965,
+        "net_reduction_percent": 61.01128298163978
+      }
+    }
+  },
+  "routing": {
+    "dispatch_slices": 12,
+    "repair_slices": 5,
+    "dispatch_gpt_routes": 107,
+    "dispatch_qwen_routes": 66,
+    "repair_gpt_routes": 29,
+    "failed_routes": 0
+  },
+  "caveats": [
+    "Six selected cases are not a population estimate.",
+    "Scoring used official FAIL_TO_PASS tests in WSL, not canonical Docker or PASS_TO_PASS.",
+    "Cached-input counts were unavailable; cost scenarios apply equal cache fractions to both policies.",
+    "Independent model runs can take different paths."
+  ]
+}

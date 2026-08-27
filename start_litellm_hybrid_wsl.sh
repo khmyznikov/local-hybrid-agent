@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT=/mnt/c/Dev/vllm-qwen38-bench
-LITELLM_HOME=/home/gkhmyznikov/litellm-hybrid
+ROOT="${LOCAL_HYBRID_AGENT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+LITELLM_HOME="${LITELLM_HOME:-$HOME/litellm-hybrid}"
 PID_FILE="$LITELLM_HOME/litellm-proxy.pid"
 
-export GITHUB_COPILOT_TOKEN_DIR=/home/gkhmyznikov/.config/litellm/github_copilot
+export GITHUB_COPILOT_TOKEN_DIR="${GITHUB_COPILOT_TOKEN_DIR:-$HOME/.config/litellm/github_copilot}"
 export HYBRID_ROUTING_LOG="$LITELLM_HOME/routing-events.jsonl"
 export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-hybrid-copilot}"
 export LOCAL_QWEN_API_KEY="${LOCAL_QWEN_API_KEY:-local-copilot}"
@@ -21,7 +21,11 @@ fi
 
 if [[ -f "$PID_FILE" ]]; then
     old_pid=$(cat "$PID_FILE")
-    old_cmd=$(tr '\0' ' ' < "/proc/$old_pid/cmdline" 2>/dev/null || true)
+    if [[ -r "/proc/$old_pid/cmdline" ]]; then
+        old_cmd=$(tr '\0' ' ' < "/proc/$old_pid/cmdline")
+    else
+        old_cmd=""
+    fi
     if [[ "$old_cmd" == *"litellm"* && "$old_cmd" == *"litellm_hybrid_config.yaml"* ]]; then
         echo "LiteLLM hybrid proxy already runs as PID $old_pid"
         exit 0

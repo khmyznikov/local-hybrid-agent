@@ -12,6 +12,8 @@ The project includes:
   full local Copilot-agent delegation, and parallel small-agent batching.
 - A LiteLLM pre-routing experiment combining local Gittensor Qwen with the
   GitHub Copilot model pool through one BYOM endpoint.
+- A validated OpenClaude local-first policy: GPT-5.4 dispatches, local Qwen
+  implements and tests, and GPT-5.4 repairs only externally failed patches.
 - Reproducible context, fidelity, MTP, cache, concurrency, and
   cloud-credit evaluation tools.
 
@@ -76,6 +78,22 @@ Run a cloud-primary Copilot session with the local MCP sidekick:
 & .\start_hybrid_copilot.ps1
 ```
 
+After starting Qwen, install the recommended OpenClaude local-first harness
+from WSL:
+
+```bash
+cd /mnt/c/Dev/local-hybrid-agent
+bash setup_litellm_hybrid_wsl.sh
+bash setup_openclaude_local_first_wsl.sh
+```
+
+GitHub Copilot OAuth must be initialized once before starting LiteLLM. Keep
+`bash start_litellm_hybrid_wsl.sh` running in one WSL terminal, then run
+`bash run_openclaude_local_first_wsl.sh run --force` in a second terminal. See
+[OPENCLAUDE_LOCAL_FIRST.md](OPENCLAUDE_LOCAL_FIRST.md) for the complete setup,
+OAuth command, architecture, staged recovery commands, outputs, cost
+interpretation, and limitations.
+
 Stop the server:
 
 ```powershell
@@ -106,6 +124,8 @@ See [HYBRID_COPILOT.md](HYBRID_COPILOT.md) for architecture, commands,
 correctness results, concurrency measurements, and cloud-credit tradeoffs.
 See [LITELLM_HYBRID_EXPERIMENT.md](LITELLM_HYBRID_EXPERIMENT.md) for the WSL
 pre-routing setup and focused SWE-bench Verified pilot.
+See [OPENCLAUDE_LOCAL_FIRST.md](OPENCLAUDE_LOCAL_FIRST.md) for the recommended
+local-implementation workflow with selective cloud repair.
 
 ## Key Measurements
 
@@ -128,6 +148,11 @@ pre-routing setup and focused SWE-bench Verified pilot.
   hybrid and forced cloud. Across the expanded eight-case latest-result view,
   both resolved 6/8; hybrid reduced cloud calls by 33.3% and cloud tokens by
   28.2%, while increasing total agent time by 6.00x.
+- The OpenClaude local-first policy and its matching cloud-implementer control
+  both resolved 6/6 focused cases after selective repair. Local-first processed
+  1,078,818 local tokens, reduced cloud tokens by 57.1%, reduced cloud calls by
+  48.9%, and reduced estimated cost by 58.0-61.0% across equal cache-rate
+  scenarios. Latency was explicitly not optimized.
 
 These are machine-specific engineering measurements, not general model quality
 claims. Run representative workloads and use the included JSONL evaluator before
@@ -140,6 +165,12 @@ choosing a routing policy.
 - `evaluate_hybrid_copilot.py`: local/cloud/hybrid evaluator.
 - `benchmark_qwen38_*.py`: long-context, cache, fidelity, and MTP tests.
 - `hybrid_swe_experiment.py`: WSL-native LiteLLM/SWE-bench pilot harness.
+- `openclaude_harness/`: local-first dispatcher, repair, summary, agent, case
+  manifest, validated result snapshot, and pinned OpenClaude compatibility
+  patch.
+- `run_openclaude_local_first_wsl.sh`: one-command local-first evaluation.
+- `setup_openclaude_local_first_wsl.sh`: pinned OpenClaude setup and build.
+- `OPENCLAUDE_LOCAL_FIRST.md`: complete local-first operations guide.
 - `QWEN38_NVFP4_COMPARISON.md`: controlled Gittensor/Unsloth comparison.
 - `windows_native_runtime_gaps.md`: native Windows ARM64 runtime gaps.
 - `prebuild_flashinfer_fp4_wsl.py`: constrained-memory FP4 JIT prebuild.
