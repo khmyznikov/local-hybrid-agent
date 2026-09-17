@@ -50,11 +50,12 @@ try {
 } catch {
 }
 
+$oldWindowsProcess = $null
 if (Test-Path $windowsPidFile) {
     $oldWindowsPid = [int](Get-Content $windowsPidFile -Raw)
-    $oldWindowsProcess = Get-Process -Id $oldWindowsPid -ErrorAction SilentlyContinue
-    if ($oldWindowsProcess -and $oldWindowsProcess.ProcessName -eq "wsl") {
-        Stop-Process -Id $oldWindowsPid -Force
+    $candidateProcess = Get-Process -Id $oldWindowsPid -ErrorAction SilentlyContinue
+    if ($candidateProcess -and $candidateProcess.ProcessName -eq "wsl") {
+        $oldWindowsProcess = $candidateProcess
     }
     Remove-Item $windowsPidFile -Force
 }
@@ -71,6 +72,15 @@ if [[ -f "$PID_FILE" ]]; then
     OLD_CMD=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null || true)
     if [[ "$OLD_CMD" == *"vllm"* && "$OLD_CMD" == *"Qwen3.8-27B-NVFP4-RTX5090"* ]]; then
         kill -TERM "$OLD_PID" || true
+        for _ in $(seq 1 90); do
+            if ! kill -0 "$OLD_PID" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+        if kill -0 "$OLD_PID" 2>/dev/null; then
+            kill -KILL "$OLD_PID" || true
+        fi
     fi
     rm -f "$PID_FILE"
 fi
@@ -139,6 +149,10 @@ $wslProcess = Start-Process -FilePath "$env:WINDIR\System32\wsl.exe" `
     -PassThru
 $wslProcess.Id | Set-Content -Path $windowsPidFile -NoNewline
 Write-Host "Started WSL host PID $($wslProcess.Id); log: /home/gkhmyznikov/vllm-qwen38-wsl/qwen38_copilot_server.log"
+
+if ($oldWindowsProcess -and -not $oldWindowsProcess.WaitForExit(95000)) {
+    Stop-Process -Id $oldWindowsProcess.Id -Force -ErrorAction SilentlyContinue
+}
 
 $deadline = [DateTime]::UtcNow.AddSeconds($WaitSeconds)
 do {

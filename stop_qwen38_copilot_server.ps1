@@ -7,13 +7,13 @@ $ErrorActionPreference = "Stop"
 $windowsPidFile = Join-Path $PSScriptRoot ".qwen38-copilot-wsl.pid"
 $stateFile = Join-Path $PSScriptRoot ".qwen38-copilot-profile.json"
 
+$windowsProcess = $null
 if (Test-Path $windowsPidFile) {
     $windowsPid = [int](Get-Content $windowsPidFile -Raw)
-    $windowsProcess = Get-Process -Id $windowsPid -ErrorAction SilentlyContinue
-    if ($windowsProcess -and $windowsProcess.ProcessName -eq "wsl") {
-        Stop-Process -Id $windowsPid -Force
+    $candidateProcess = Get-Process -Id $windowsPid -ErrorAction SilentlyContinue
+    if ($candidateProcess -and $candidateProcess.ProcessName -eq "wsl") {
+        $windowsProcess = $candidateProcess
     }
-    Remove-Item $windowsPidFile -Force
 }
 Remove-Item $stateFile -Force -ErrorAction SilentlyContinue
 
@@ -26,6 +26,15 @@ if [[ -f "$PID_FILE" ]]; then
     CMD=$(tr '\0' ' ' < "/proc/$PID/cmdline" 2>/dev/null || true)
     if [[ "$CMD" == *"vllm"* && "$CMD" == *"Qwen3.8-27B-NVFP4-RTX5090"* ]]; then
         kill -TERM "$PID" || true
+        for _ in $(seq 1 90); do
+            if ! kill -0 "$PID" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+        if kill -0 "$PID" 2>/dev/null; then
+            kill -KILL "$PID" || true
+        fi
     fi
     rm -f "$PID_FILE"
 fi
@@ -41,3 +50,7 @@ $encodedScript = [Convert]::ToBase64String(
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to stop the Qwen server"
 }
+if ($windowsProcess -and -not $windowsProcess.WaitForExit(95000)) {
+    Stop-Process -Id $windowsProcess.Id -Force -ErrorAction SilentlyContinue
+}
+Remove-Item $windowsPidFile -Force -ErrorAction SilentlyContinue

@@ -72,6 +72,7 @@ uv pip install "vllm==0.27.1" --torch-backend=auto
 uv pip install \
   "flashinfer-python==0.6.16.post3" \
   "cuda-bindings==13.3.1" \
+  "cuda-toolkit[cccl,nvcc,nvdisasm]==13.2.1" \
   "cuda-tile==1.5.0" \
   "nvidia-cutlass-dsl==4.6.0" \
   "quack-kernels==0.6.1" \
@@ -81,7 +82,11 @@ uv pip install \
 ```
 
 Align CUDA compilation packages with the PyTorch CUDA version installed in the
-environment. The validated environment used CUDA 13 packages.
+environment. The current vLLM 0.27.1 resolver installs PyTorch CUDA 13.2, so the
+CUDA 13.2.1 toolkit extras above pin NVCC, CRT, NVVM, CCCL, and nvdisasm to the
+matching 13.2 releases. Without that pin, a later CUDA 13.3 compiler can be
+combined with 13.2 runtime headers and FlashInfer will reject the mixed
+toolchain during its compatibility check.
 
 ## Expose the CUDA Toolkit
 
@@ -138,7 +143,7 @@ before loading model weights so the 8 GiB WSL allocation is not shared between
 the model and compiler processes:
 
 ```bash
-cd /mnt/c/Dev/local-hybrid-agent
+cd /mnt/x/GitHub/local-hybrid-agent
 source ~/vllm-qwen38-wsl/.venv/bin/activate
 MAX_JOBS=1 python prebuild_flashinfer_fp4_wsl.py
 ```
